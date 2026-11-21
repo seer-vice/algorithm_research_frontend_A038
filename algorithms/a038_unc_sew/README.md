@@ -10,7 +10,6 @@ P7 改进默认开启：CRC 完整性通道 + LSB 标尺定位）。
 app.py            平台契约层（POST /process、/files 静态结果、CORS、TTL 清理、GPU 串行锁）
 service.py        算法适配（embed/verify、判决规则、报告/曲线/恢复输出）
 smoke_test.py     CPU 冒烟自检（13 项，mock codec，无需 GPU）
-make_samples.py   生成前端展示样例（须真 codec 机器）
 src/              A038 纯算法模块（publisher/verifier/extractor/payload/lsb/dtw/codec_io...）
 requirements.txt
 ```
@@ -25,7 +24,7 @@ pip install -r requirements.txt
 # 2) 冒烟自检（mock codec，无 GPU 也能跑）
 python smoke_test.py           # 预期 13 项全 PASS
 
-# 3) 真 codec（华为云 GPU 机器）+ 启动
+# 3) 真 codec（GPU 机器）+ 启动
 pip install torch --index-url https://download.pytorch.org/whl/cu128
 # SemantiCodec 推理包（私有部署，详见组内文档）：
 pip install -e <SemantiCodec-inference 路径>
@@ -43,13 +42,13 @@ pip install snac && export A038_CODEC=snac
 `$env:A038_CODEC="semanticodec"; $env:A038_PRETRAINED="D:\...\pretrained"`。
 SNAC 权重首次下载需 `export HF_ENDPOINT=https://hf-mirror.com`。
 
-## 华为云部署建议（500 元代金券）
+## 服务器最低配置要求
 
-- 机型：**GPU 型 T4（g6v/p2s 系）× 1，按需计费**——T4 按需约 ¥1.2~2.8/h，
-  500 元代金券 ≈ 200~400 演示小时；演示/验收时段开机，平时关机（代金券
-  自动抵扣按需费用）。磁盘 40~60 GB 通用型即可（SemantiCodec 权重 + 环境）。
-- 系统：Ubuntu 22.04 + CUDA 12.8 驱动（GPU 镜像自带）。
-- 安全组：放行 8710（API）+ 22（SSH）。
+- GPU：**T4 级或更高（CUDA 12.8）**——3-30s 音频单次处理约 5-40s；显存
+  ≥8 GB（SemantiCodec 权重约 3 GB）。无 GPU 时可用 SNAC 备选（CPU 3-5s/句）。
+- 磁盘：40-60 GB（权重 + 环境 + 结果 TTL 缓存）。
+- 系统：Ubuntu 22.04 + CUDA 12.8 驱动。
+- 网络：放行 8710（API）+ 22（SSH）。
 - 常驻（可选）：`systemd` 一条单元即够（`Restart=always` + `A038_CODEC=semanticodec`）。
 - 公开演示的 HTTPS：挂 caddy/nginx 反代到 8710（前端若部署在 HTTPS 站点，
   接口须同为 HTTPS；本地 `npm run dev` 调试则 HTTP 即可）。
@@ -59,9 +58,8 @@ SNAC 权重首次下载需 `export HF_ENDPOINT=https://hf-mirror.com`。
 - 方法配置：`public/methods/a038_unc_sew.json`（`adapter.endpoint` 部署后
   改为 `http://<公网IP>:8710/process` 或 HTTPS 域名）。
 - 契约自检：仓库根 `npm test`（校验方法 JSON 与样例结构）+ `npm run build`。
-- 样例生成（12 条契约版，A038_P3 工程根目录跑）：
-  `python make_examples.py --res-dir res/p7_improve --out <本仓库>/public/samples/a038_unc_sew --update-json <本仓库>/public/methods/a038_unc_sew.json`
-  （`--seed N` 换句；旧单句样例 `make_samples.py` 保留可作调试）。
+- 展示样例为静态提交（`public/samples/a038_unc_sew/`，12 条贴满契约上限），
+  无需生成步骤即可跑通方法页与冒烟自检。
 
 ## 已知边界（与复现报告口径一致）
 

@@ -52,7 +52,7 @@
 ## 5. 环境、安装、启动与首次处理
 
 ```bash
-# 1) 算法服务（华为云 T4 / 任何 CUDA 12.8 机器）
+# 1) 算法服务（任何 CUDA 12.8 GPU 机器，T4 或同档；最低配置见算法 README）
 cd algorithms/a038_unc_sew
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -61,14 +61,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128
 pip install -e <SemantiCodec-inference>   # 真 codec（组内私有部署，见算法 README）
 A038_CODEC=semanticodec uvicorn app:app --host 0.0.0.0 --port 8710
 
-# 2) 样例生成（真 codec 机器，A038_P3 工程根目录，一次即可）
-#    12 条契约样例：原声（embed 演示）+ 11 种攻击（论文三类 + 信道 8 类）
-#    换句用 --seed（同 seed 确定性）；不满意判决换 seed 重跑即可
-cd <A038_P3 根目录> && python make_examples.py --res-dir res/p7_improve \
-    --out <本仓库>/public/samples/a038_unc_sew \
-    --update-json <本仓库>/public/methods/a038_unc_sew.json
-
-# 3) 前端
+# 2) 前端
 npm install && npm run dev                # http://127.0.0.1:5173
 #    方法页：#/methods/a038_unc_sew（endpoint 已写入配置；部署后替换 IP）
 ```
@@ -79,8 +72,7 @@ npm install && npm run dev                # http://127.0.0.1:5173
 
 ## 6. 输入输出样例、复现参数与验证结果
 
-样例位于 `public/samples/a038_unc_sew/`（由 A038_P3 工程的 `make_examples.py`
-生成，12 条贴满平台契约上限）：原声 embed 演示（real → 水印信号 x̃，听感
+样例位于 `public/samples/a038_unc_sew/`（12 条，贴满平台契约上限）：原声 embed 演示（real → 水印信号 x̃，听感
 透明度对比）+ 11 种攻击检测样例（论文三类词级操纵 → TAMPERED + 接缝定位；
 信道 8 类扰动 → 水印死亡报警 UNMARKED_OR_CHANNEL）。每条样例的 description
 含原句转写、篡改区间真值与观察重点。
@@ -96,7 +88,7 @@ npm install && npm run dev                # http://127.0.0.1:5173
 
 水印死亡报警（论文静默失效场景）：完好水印 30 例零误报、10 类信道扰动
 300 例 100% 报警（absent 262 / corrupted 38）。同代码版独立对照复核
-（2026-10-31，`p6_channel_re` vs `p7_channel`）：legacy 布局失效检测率
+（2026-10-31）：legacy 布局失效检测率
 0%（静默）vs P7 **100%**；信道扰动下句级 EER 两侧均为无判别力区间
 （0.30–0.93，DTW 主通道对整段扰动本无判别力），正确主指标为失效
 检测率。判决口径：absent = 水印不存在或失效（fail-safe 报警侧）。
