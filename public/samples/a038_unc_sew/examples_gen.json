@@ -1,0 +1,242 @@
+[
+  {
+    "title": "原声 → 嵌入水印（embed，5.6s）",
+    "description": "embed 任务演示：原始干净语音（AV-Deepfake1M val）→ 水印信号 x̃（PESQ≈4.6，听感无差异）。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。对比输入输出音频验证透明度；对 x̃ 再跑 verify 会得到 AUTHENTIC/verified。原始录音（未嵌水印）：verify 判 UNMARKED_OR_CHANNEL（fail-safe 报警侧——与水印死亡不可区分）。也可作为 embed 任务的输入素材。",
+    "input": {
+      "src": "samples/a038_unc_sew/real/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "原声（未水印）"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/watermarked/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "水印信号 x̃"
+    },
+    "parameters": {
+      "task": "embed",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "词级插入 → TAMPERED（5.6s）",
+    "description": "词级插入攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[3.74,4.00]s。观察判决 TAMPERED、LSB 一致率在插入段塌陷、红色虚线标出插入接缝（真实位置红带）。",
+    "input": {
+      "src": "samples/a038_unc_sew/insert/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "词级插入后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/insert/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "词级删除 → TAMPERED（5.6s）",
+    "description": "词级删除攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[3.73,3.75]s。观察判决 TAMPERED、帧级代价在删除段持续抬升、接缝定位亚帧精度（红带=真实删除区间）。",
+    "input": {
+      "src": "samples/a038_unc_sew/delete/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "词级删除后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/delete/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "词级替换 → TAMPERED（5.6s）",
+    "description": "词级替换攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[0.22,0.42]s。同说话人词级替换：判决 TAMPERED，替换段一致率塌陷（红带=真实替换区间）。",
+    "input": {
+      "src": "samples/a038_unc_sew/direct/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "词级替换后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/direct/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "加噪 20dB → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "加噪 20dB攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：水印死亡 → integrity=absent，判 UNMARKED_OR_CHANNEL（水印不存在或失效）。噪声较弱时 DTW 分数本身几乎不变——靠 CRC 通道报警（本组改进）。",
+    "input": {
+      "src": "samples/a038_unc_sew/noise20/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "加噪 20dB后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/noise20/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "加噪 10dB → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "加噪 10dB攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：加噪 10dB 摧毁 LSB 载荷 → absent 报警。",
+    "input": {
+      "src": "samples/a038_unc_sew/noise10/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "加噪 10dB后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/noise10/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "低通 3.4kHz → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "低通 3.4kHz攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：3.4kHz 低通摧毁载荷 → absent 报警（分数反降，DTW 无判别力——靠 CRC）。",
+    "input": {
+      "src": "samples/a038_unc_sew/lowpass/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "低通 3.4kHz后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/lowpass/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "变调 +2半音 → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "变调 +2半音攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：+2 半音变调摧毁载荷 → absent 报警。",
+    "input": {
+      "src": "samples/a038_unc_sew/pitch2/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "变调 +2半音后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/pitch2/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "时长 ×1.05 → TAMPERED（5.6s）",
+    "description": "时长 ×1.05攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[0.00,5.88]s。信道扰动：时长 ×1.05——单同步退化：integrity=corrupted（至少 R-1 份被毁，2026-10-31 口径）→ TAMPERED 证据级报警。",
+    "input": {
+      "src": "samples/a038_unc_sew/stretch105/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "时长 ×1.05后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/stretch105/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "MP3 128kbps → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "MP3 128kbps攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：MP3 128kbps 无声移除水印（论文未测）→ absent 报警。最温和的现实信道即可击穿 LSB 层。",
+    "input": {
+      "src": "samples/a038_unc_sew/mp3/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "MP3 128kbps后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/mp3/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "OGG 64kbps → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "OGG 64kbps攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：OGG 64kbps → absent 报警。",
+    "input": {
+      "src": "samples/a038_unc_sew/ogg/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "OGG 64kbps后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/ogg/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  },
+  {
+    "title": "高斯平滑 2ms → UNMARKED_OR_CHANNEL（5.6s）",
+    "description": "高斯平滑 2ms攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：2ms 高斯滑窗平滑 → absent 报警（分数反向，DTW 失效——CRC 兜底）。",
+    "input": {
+      "src": "samples/a038_unc_sew/gauss/id04230_ig0WcY9M2LY_00137_real.wav",
+      "kind": "audio",
+      "label": "高斯平滑 2ms后音频"
+    },
+    "output": {
+      "src": "samples/a038_unc_sew/gauss/id04230_ig0WcY9M2LY_00137_real.png",
+      "kind": "image",
+      "label": "波形+帧级代价"
+    },
+    "parameters": {
+      "task": "verify",
+      "lsb_k": 1,
+      "payload_crc": true,
+      "lsb_fusion": true
+    }
+  }
+]
