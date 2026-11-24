@@ -4,10 +4,10 @@
   "title": "UNC-SEW 超低码率神经编解码器自嵌入水印",
   "english": "UNC-SEW: Ultra-low-bitrate Neural Codec Self-Embedding Watermarking",
   "category": "主动防御",
-  "summary": "为语音嵌入不可感知的自重建水印：检出词级局部篡改（替换/删除/插入）并给出篡改接缝定位与内容恢复，信道退化时触发完整性报警。",
-  "description": "复现并改进论文 Self-embedding watermarking with ultra-low-bitrate neural codecs（arXiv 2608.25289）。发布端用 SemantiCodec（0.65 kbps）把语音压成亚 kbps 码流并作为水印以 R 份重复 LSB 嵌入，透明度 PESQ 约 4.6；接收端盲提取载荷、经神经解码器自重建参考语音，与待测语音做 DTW 帧级代价对比，实现篡改检测、接缝定位（约 4-12 ms）与区域内容恢复。本组改进（论文原版不具备）：每份载荷附 CRC16 完整性校验（水印被信道操作摧毁时报警而非静默放行）、LSB 一致性标尺通道（篡改接缝定位精度达亚帧级）。适用范围：16 kHz 单声道 3-30 秒 WAV 语音。效果限制：水印承载在浮点最低有效位，任何有损压缩（MP3 等）、重量化或强加噪都会摧毁水印（此时触发完整性报警）；能检出并恢复词级局部篡改，但无法区分'从未水印'与'水印被信道摧毁'；理论可被提取并重绘 LSB 的自适应攻击者绕过（水印无密钥，属论文口径已知边界）。任务模式：task=embed 嵌入水印并输出水印信号（float32 WAV，请勿转码为 MP3/16-bit PCM）；task=verify 检测上传音频并输出判决、帧级代价曲线、检测报告与恢复音频。处理为同步等待，单次约 5-40 秒（GPU）；服务串行处理，繁忙时返回 429 请稍后重试；结果文件保留 1 小时后自动清理，用户取消请求不中止服务端已开始的处理。",
+  "summary": "为语音嵌入不可感知的自重建水印：检出词级局部篡改（替换/删除/插入）并给出篡改接缝定位与内容恢复；默认论文原版判决口径，开启增强通道后信道退化触发完整性报警。",
+  "description": "复现并改进论文 Self-embedding watermarking with ultra-low-bitrate neural codecs（arXiv 2608.25289）。发布端用 SemantiCodec（0.65 kbps）把语音压成亚 kbps 码流并作为水印以 R 份重复 LSB 嵌入，透明度 PESQ 约 4.6；接收端盲提取载荷、经神经解码器自重建参考语音，与待测语音做 DTW 帧级代价对比。判决口径（与论文 §III 原版对齐，默认）：语句级得分 s(y)=top1% 帧代价均值/中位数，s(y)≥τ 判 TAMPERED（τ 为 1480 行 EER 校准阈值 2.0433，总 EER 13.4%）；本组增强通道（默认关闭，可开启）：每份载荷附 CRC16 完整性校验（水印被信道操作摧毁时报警而非静默失效——论文口径的已知盲区）、LSB 一致性标尺通道（篡改接缝定位精度达亚帧级，约 4-12 ms）。适用范围：16 kHz 单声道 3-30 秒 WAV 语音。效果限制：水印承载在浮点最低有效位，任何有损压缩（MP3 等）、重量化或强加噪都会摧毁水印（论文口径下静默放行；开启 CRC 通道后报警）；能检出并恢复词级局部篡改，但无法区分'从未水印'与'水印被信道摧毁'；delete 攻击为论文已知最弱项（EER 18.0%）；理论可被提取并重绘 LSB 的自适应攻击者绕过（水印无密钥，属论文口径已知边界）。任务模式：task=embed 嵌入水印并输出水印信号（float32 WAV，请勿转码为 MP3/16-bit PCM）；task=verify 检测上传音频并输出判决、帧级代价曲线、检测报告与恢复音频。处理为同步等待，单次约 5-40 秒（GPU）；服务串行处理，繁忙时返回 429 请稍后重试；结果文件保留 1 小时后自动清理，用户取消请求不中止服务端已开始的处理。",
   "team": "A038",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "runtime": "算法服务 · GPU（T4 / 按需）",
   "inputs": [
     {
@@ -54,32 +54,40 @@
     },
     {
       "name": "payload_crc",
-      "label": "CRC16 完整性校验",
+      "label": "CRC16 完整性校验（增强通道）",
       "type": "boolean",
-      "default": true,
+      "default": false,
       "required": true,
-      "help": "本组改进：逐份载荷 CRC 校验，水印被信道摧毁时报警（论文原版会静默失效）。"
+      "help": "本组改进（论文原版不含，默认关=论文口径）：逐份载荷 CRC 校验，水印被信道摧毁时报警而非静默失效。开启需配合 CRC 布局嵌入的音频。"
     },
     {
       "name": "lsb_fusion",
-      "label": "LSB 标尺定位",
+      "label": "LSB 标尺定位（增强通道）",
       "type": "boolean",
-      "default": true,
+      "default": false,
       "required": true,
-      "help": "本组改进：载荷恢复后与规范位流逐帧比对，篡改接缝定位达亚帧精度（约 4-12 ms）。"
+      "help": "本组改进（论文原版不含，默认关=论文口径）：载荷恢复后与规范位流逐帧比对，篡改接缝定位达亚帧精度（约 4-12 ms）。"
+    },
+    {
+      "name": "tau",
+      "label": "判决阈值 τ",
+      "type": "number",
+      "default": 2.0433,
+      "required": false,
+      "help": "论文口径判决阈值：s(y)≥τ 判 TAMPERED。默认 2.0433 为 P5 复现 1480 行 EER 校准值（总 EER 13.4%），一般无需调整。"
     }
   ],
   "examples": [
     {
-      "title": "原声 embed",
-      "description": "embed 任务演示：原始干净语音（AV-Deepfake1M val）→ 水印信号 x̃（PESQ≈4.6，听感无差异）。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。对比输入输出音频验证透明度；对 x̃ 再跑 verify 会得到 AUTHENTIC/verified。原始录音（未嵌水印）：verify 判 UNMARKED_OR_CHANNEL（fail-safe 报警侧——与水印死亡不可区分）。也可作为 embed 任务的输入素材。",
+      "title": "嵌入水印",
+      "description": "embed 任务演示：原始干净语音（AV-Deepfake1M val）→ 水印信号 x̃（PESQ≈4.6，听感无差异）。原句：I think financial reform. I think we have in fact made it much less likely that we will see。对比输入输出音频验证透明度；对 x̃ 再跑 verify 会得到 AUTHENTIC/verified。原始录音（未嵌水印）：P7 增强口径下 verify 判 UNMARKED_OR_CHANNEL（fail-safe 报警侧——与水印死亡不可区分）；论文默认口径下则判 AUTHENTIC（无水印不在论文威胁模型，分数无判别力）。也可作为 embed 任务的输入素材。",
       "input": {
-        "src": "samples/a038_unc_sew/real/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/real/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "原声（未水印）"
       },
       "output": {
-        "src": "samples/a038_unc_sew/watermarked/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/watermarked/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "水印信号 x̃"
       },
@@ -91,15 +99,15 @@
       }
     },
     {
-      "title": "插入",
-      "description": "词级插入攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[3.74,4.00]s。观察判决 TAMPERED、LSB 一致率在插入段塌陷、红色虚线标出插入接缝（真实位置红带）。",
+      "title": "词级插入",
+      "description": "词级插入攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：TAMPERED（integrity=partial）。 篡改区间（真值）：[1.78,2.24]s。观察判决 TAMPERED、LSB 一致率在插入段塌陷、红色虚线标出插入接缝（真实位置红带）。本样例走 P7 增强口径（参数已开 CRC/标尺）。",
       "input": {
-        "src": "samples/a038_unc_sew/insert/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/insert/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "词级插入后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/insert/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/insert/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -111,15 +119,15 @@
       }
     },
     {
-      "title": "删除",
-      "description": "词级删除攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[3.73,3.75]s。观察判决 TAMPERED、帧级代价在删除段持续抬升、接缝定位亚帧精度（红带=真实删除区间）。",
+      "title": "词级删除",
+      "description": "词级删除攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：TAMPERED（integrity=partial）。 篡改区间（真值）：[3.09,3.11]s。观察判决 TAMPERED、帧级代价在删除段持续抬升、接缝定位亚帧精度（红带=真实删除区间）。本样例走 P7 增强口径（参数已开 CRC/标尺）。",
       "input": {
-        "src": "samples/a038_unc_sew/delete/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/delete/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "词级删除后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/delete/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/delete/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -131,15 +139,15 @@
       }
     },
     {
-      "title": "替换",
-      "description": "词级替换攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[0.22,0.42]s。同说话人词级替换：判决 TAMPERED，替换段一致率塌陷（红带=真实替换区间）。",
+      "title": "词级替换",
+      "description": "词级替换攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：TAMPERED（integrity=partial）。 篡改区间（真值）：[0.64,0.78]s。同说话人词级替换：判决 TAMPERED，替换段一致率塌陷（红带=真实替换区间）。本样例走 P7 增强口径（参数已开 CRC/标尺）。",
       "input": {
-        "src": "samples/a038_unc_sew/direct/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/direct/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "词级替换后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/direct/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/direct/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -151,15 +159,15 @@
       }
     },
     {
-      "title": "加噪20dB",
-      "description": "加噪 20dB攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：水印死亡 → integrity=absent，判 UNMARKED_OR_CHANNEL（水印不存在或失效）。噪声较弱时 DTW 分数本身几乎不变——靠 CRC 通道报警（本组改进）。",
+      "title": "加噪 20dB",
+      "description": "加噪 20dB攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：水印死亡 → integrity=absent，判 UNMARKED_OR_CHANNEL（水印不存在或失效）。噪声较弱时 DTW 分数本身几乎不变——靠 CRC 通道报警（本组改进）。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/noise20/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/noise20/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "加噪 20dB后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/noise20/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/noise20/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -171,15 +179,15 @@
       }
     },
     {
-      "title": "加噪10dB",
-      "description": "加噪 10dB攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：加噪 10dB 摧毁 LSB 载荷 → absent 报警。",
+      "title": "加噪 10dB",
+      "description": "加噪 10dB攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：加噪 10dB 摧毁 LSB 载荷 → absent 报警。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/noise10/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/noise10/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "加噪 10dB后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/noise10/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/noise10/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -191,15 +199,15 @@
       }
     },
     {
-      "title": "低通",
-      "description": "低通 3.4kHz攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：3.4kHz 低通摧毁载荷 → absent 报警（分数反降，DTW 无判别力——靠 CRC）。",
+      "title": "低通 3.4kHz",
+      "description": "低通 3.4kHz攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：3.4kHz 低通摧毁载荷 → absent 报警（分数反降，DTW 无判别力——靠 CRC）。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/lowpass/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/lowpass/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "低通 3.4kHz后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/lowpass/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/lowpass/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -211,15 +219,15 @@
       }
     },
     {
-      "title": "变调",
-      "description": "变调 +2半音攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：+2 半音变调摧毁载荷 → absent 报警。",
+      "title": "变调 +2 半音",
+      "description": "变调 +2半音攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：+2 半音变调摧毁载荷 → absent 报警。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/pitch2/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/pitch2/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "变调 +2半音后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/pitch2/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/pitch2/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -231,15 +239,15 @@
       }
     },
     {
-      "title": "变速",
-      "description": "时长 ×1.05攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：TAMPERED（integrity=corrupted）。 篡改区间（真值）：[0.00,5.88]s。信道扰动：时长 ×1.05——单同步退化：integrity=corrupted（至少 R-1 份被毁，2026-10-31 口径）→ TAMPERED 证据级报警。",
+      "title": "时长 ×1.05",
+      "description": "时长 ×1.05攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.51]s。信道扰动：时长 ×1.05——单同步退化：integrity=corrupted（至少 R-1 份被毁，2026-10-31 口径）→ TAMPERED 证据级报警。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/stretch105/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/stretch105/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "时长 ×1.05后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/stretch105/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/stretch105/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -251,15 +259,15 @@
       }
     },
     {
-      "title": "MP3",
-      "description": "MP3 128kbps攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：MP3 128kbps 无声移除水印（论文未测）→ absent 报警。最温和的现实信道即可击穿 LSB 层。",
+      "title": "MP3 128kbps",
+      "description": "MP3 128kbps攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：MP3 128kbps 无声移除水印（论文未测）→ absent 报警。最温和的现实信道即可击穿 LSB 层。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/mp3/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/mp3/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "MP3 128kbps后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/mp3/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/mp3/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -271,15 +279,15 @@
       }
     },
     {
-      "title": "OGG",
-      "description": "OGG 64kbps攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：OGG 64kbps → absent 报警。",
+      "title": "OGG 64kbps",
+      "description": "OGG 64kbps攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：OGG 64kbps → absent 报警。（注：此为 P7 增强口径判决；论文默认口径下此类信道攻击属已知盲区——DTW 得分无判别力，会静默放行判 AUTHENTIC，开启 CRC 增强通道后才报警。）",
       "input": {
-        "src": "samples/a038_unc_sew/ogg/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/ogg/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "OGG 64kbps后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/ogg/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/ogg/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -291,15 +299,15 @@
       }
     },
     {
-      "title": "平滑",
-      "description": "高斯平滑 2ms攻击。原句：Literally my school and my college was Sesame Street and the people I worked with and they really took care of me.。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,5.60]s。信道扰动：2ms 高斯滑窗平滑 → absent 报警（分数反向，DTW 失效——CRC 兜底）。",
+      "title": "高斯平滑 2ms",
+      "description": "高斯平滑 2ms攻击。原句：I think financial reform. I think we have in fact made it much less likely that we will see。判决：UNMARKED_OR_CHANNEL（integrity=absent）。 篡改区间（真值）：[0.00,6.20]s。信道扰动：2ms 高斯滑窗平滑 → absent 报警（分数反向，DTW 失效——CRC 兜底）。",
       "input": {
-        "src": "samples/a038_unc_sew/gauss/id04230_ig0WcY9M2LY_00137_real.wav",
+        "src": "samples/a038_unc_sew/gauss/id00903_d7Dne_DrHMo_00308_real.wav",
         "kind": "audio",
         "label": "高斯平滑 2ms后音频"
       },
       "output": {
-        "src": "samples/a038_unc_sew/gauss/id04230_ig0WcY9M2LY_00137_real.png",
+        "src": "samples/a038_unc_sew/gauss/id00903_d7Dne_DrHMo_00308_real.png",
         "kind": "image",
         "label": "波形+帧级代价"
       },
@@ -313,6 +321,6 @@
   ],
   "adapter": {
     "type": "http",
-    "endpoint": "http://0.0.0.0:8710/process"
+    "endpoint": "http://1.92.79.221:8710/process"
   }
 }
